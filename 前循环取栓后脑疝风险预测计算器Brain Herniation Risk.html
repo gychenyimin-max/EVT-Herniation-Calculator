@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前循环取栓后脑疝风险预测计算器</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", "微软雅黑", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f4f0; color: #1a1a1a; min-height: 100vh; padding: 24px 16px 48px;
+  }
+  .container { max-width: 740px; margin: 0 auto; }
+
+  .lang-bar { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+  .lang-btn {
+    padding: 5px 16px; font-size: 12px; font-family: inherit;
+    cursor: pointer; background: #fff; border: 1px solid #d0d0d0; color: #555; transition: all .15s;
+  }
+  .lang-btn:first-child { border-radius: 6px 0 0 6px; }
+  .lang-btn:last-child  { border-radius: 0 6px 6px 0; border-left: none; }
+  .lang-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  .header { margin-bottom: 22px; }
+  .header h1 { font-size: 19px; font-weight: 600; margin-bottom: 3px; }
+  .header p  { font-size: 12px; color: #888; line-height: 1.6; }
+
+  .tabs {
+    display: flex; border: 1px solid #ddd; border-radius: 8px;
+    overflow: hidden; margin-bottom: 20px; width: fit-content;
+  }
+  .tab {
+    padding: 9px 22px; font-size: 13px; cursor: pointer; background: transparent;
+    border: none; color: #888; font-family: inherit; transition: all .15s; white-space: nowrap;
+  }
+  .tab.active { background: #1a1a1a; color: #fff; font-weight: 500; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: .07em;
+    text-transform: uppercase; color: #999; margin: 20px 0 10px;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 500px) { .row { grid-template-columns: 1fr; } }
+
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+  .field label { font-size: 13px; color: #444; font-weight: 500; }
+  .field .sublabel { font-size: 11px; color: #aaa; margin-top: -3px; }
+  .field select, .field input[type=number] {
+    width: 100%; padding: 8px 10px; font-size: 13px; font-family: inherit;
+    background: #fff; border: 1px solid #d0d0d0; border-radius: 7px;
+    color: #1a1a1a; outline: none; transition: border-color .15s;
+  }
+  .field select:focus, .field input[type=number]:focus { border-color: #888; }
+  .pill {
+    display: inline-flex; align-items: center; font-size: 11px; padding: 2px 9px;
+    border-radius: 999px; border: 1px solid #e4e4e4; color: #888; background: #fafafa; width: fit-content;
+  }
+
+  .result-card {
+    border-radius: 12px; border: 1px solid #e0e0e0;
+    padding: 20px 22px; margin-top: 20px; background: #fff;
+  }
+  .result-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .result-left .lbl   { font-size: 11px; color: #999; margin-bottom: 2px; }
+  .result-left .score { font-size: 22px; font-weight: 600; }
+  .result-right { text-align: right; }
+  .result-right .lbl  { font-size: 11px; color: #999; margin-bottom: 2px; }
+  .prob-row { display: flex; align-items: flex-end; gap: 3px; justify-content: flex-end; }
+  .prob-num  { font-size: 40px; font-weight: 600; line-height: 1; }
+  .prob-unit { font-size: 14px; color: #888; margin-bottom: 5px; }
+
+  .gauge-track { height: 8px; border-radius: 4px; background: #efefef; overflow: hidden; margin: 10px 0; }
+  .gauge-fill  { height: 100%; border-radius: 4px; transition: width .4s ease, background .4s ease; width: 0%; }
+
+  .risk-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .risk-label { font-size: 14px; font-weight: 600; }
+  .cutoff-tag {
+    font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    background: #f2f2f2; border: 1px solid #e0e0e0; color: #666;
+  }
+  .formula-box {
+    font-size: 11px; color: #bbb; margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid #f0f0f0; font-family: "Courier New", monospace; line-height: 1.7;
+  }
+  .breakdown { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; }
+  .bd-title  { font-size: 11px; color: #bbb; margin-bottom: 5px; }
+  .bd-row {
+    display: flex; justify-content: space-between;
+    font-size: 12px; padding: 3px 0; color: #777; border-bottom: 1px dashed #f4f4f4;
+  }
+  .bd-row:last-child { border-bottom: none; }
+  .bd-val { font-weight: 600; color: #1a1a1a; }
+
+  .footer {
+    margin-top: 28px; padding: 14px 16px; background: #fff;
+    border: 1px solid #e8e8e8; border-radius: 10px;
+    font-size: 11px; color: #aaa; line-height: 1.8;
+  }
+  .footer strong { color: #777; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="lang-bar">
+    <button class="lang-btn active" id="btn-zh" onclick="setLang('zh')">中文</button>
+    <button class="lang-btn"        id="btn-en" onclick="setLang('en')">English</button>
+  </div>
+
+  <div class="header">
+    <h1 id="hdr-title"></h1>
+    <p  id="hdr-sub"></p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-can" onclick="switchTab('can')"></button>
+    <button class="tab"        id="tab-p24" onclick="switchTab('p24')"></button>
+  </div>
+
+  <!-- CAN-CPR -->
+  <div id="panel-can" class="panel active">
+    <div class="section-label" id="can-s1"></div>
+    <div class="row">
+      <div class="field">
+        <label id="lbl-chd"></label>
+        <select id="chd" onchange="calcCan()"></select>
+        <span class="pill" id="p-chd">0</span>
+      </div>
+      <div class="field">
+        <label id="lbl-glc"></label>
+        <div class="sublabel">mmol/L</div>
+        <input type="number" id="glc" step="0.1" min="0" max="50" oninput="calcCan()" />
+        <span class="pill" id="p-glc">—</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label id="lbl-asp"></label>
+        <select id="asp" onchange="calcCan()"></select>
+        <span class="pill" id="p-asp">0</span>
+      </div>
+      <div class="field">
+        <label id="lbl-nhs"></label>
+        <input type="number" id="nhs" placeholder="0–42" min="0" max="42" oninput="calcCan()" />
+        <span class="pill" id="p-nhs">—</span>
+      </div>
+    </div>
+    <div class="section-label" id="can-s2"></div>
+    <div class="row">
+      <div class="field">
+        <label id="lbl-col"></label>
+        <select id="col" onchange="calcCan()"></select>
+        <span class="pill" id="p-col">0</span>
+      </div>
+      <div class="field">
+        <label id="lbl-pas"></label>
+        <select id="pas" onchange="calcCan()"></select>
+        <span class="pill" id="p-pas">0</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label id="lbl-rec"></label>
+        <select id="rec" onchange="calcCan()"></select>
+        <span class="pill" id="p-rec">0</span>
+      </div>
+    </div>
+    <div class="result-card">
+      <div class="result-top">
+        <div class="result-left">
+          <div class="lbl" id="can-slbl"></div>
+          <div class="score" id="can-total">—</div>
+        </div>
+        <div class="result-right">
+          <div class="lbl" id="can-rlbl"></div>
+          <div class="prob-row">
+            <span class="prob-num" id="can-prob">—</span>
+            <span class="prob-unit" id="can-pct"></span>
+          </div>
+        </div>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="can-gauge"></div></div>
+      <div class="formula-box" id="can-fml"></div>
+      <div class="breakdown"   id="can-bd"></div>
+    </div>
+  </div>
+
+  <!-- CPR-24 -->
+  <div id="panel-p24" class="panel">
+    <div class="section-label" id="p24-s1"></div>
+    <div class="row">
+      <div class="field">
+        <label id="lbl-pc"></label>
+        <select id="pc" onchange="calcP24()"></select>
+        <span class="pill" id="q-col">0</span>
+      </div>
+      <div class="field">
+        <label id="lbl-ph"></label>
+        <select id="ph" onchange="calcP24()"></select>
+        <span class="pill" id="q-ph">0</span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label id="lbl-pr"></label>
+        <select id="pr" onchange="calcP24()"></select>
+        <span class="pill" id="q-rec">0</span>
+      </div>
+      <div class="field">
+        <label id="lbl-n24"></label>
+        <input type="number" id="n24" placeholder="0–42" min="0" max="42" oninput="calcP24()" />
+        <span class="pill" id="q-nhs">—</span>
+      </div>
+    </div>
+    <div class="result-card">
+      <div class="result-top">
+        <div class="result-left">
+          <div class="lbl" id="p24-slbl"></div>
+          <div class="score" id="p24-total">—</div>
+        </div>
+        <div class="result-right">
+          <div class="lbl" id="p24-rlbl"></div>
+          <div class="prob-row">
+            <span class="prob-num" id="p24-prob">—</span>
+            <span class="prob-unit" id="p24-pct"></span>
+          </div>
+        </div>
+      </div>
+      <div class="gauge-track"><div class="gauge-fill" id="p24-gauge"></div></div>
+      <div class="formula-box" id="p24-fml"></div>
+      <div class="breakdown"   id="p24-bd"></div>
+    </div>
+  </div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<script>
+const T = {
+  zh: {
+    title:    '前循环取栓术后脑疝风险',
+    sub:      '南方医科大学南方医院神经内科',
+    tab_can:  '术后即刻预测脑疝风险（CAN-CPR）',
+    tab_p24:  '术后24小时预测脑疝风险（CPR-24）',
+    can_s1:   '基线与术前特征',
+    can_s2:   '手术相关特征',
+    p24_s1:   '术后24小时临床特征',
+    lbl_chd:  '冠心病 (C)',
+    lbl_glc:  '入院血糖 (A)',
+    lbl_asp:  'ASPECTS (A)',
+    lbl_nhs:  '入院 NIHSS (N)',
+    lbl_col:  '侧支循环差 (C)',
+    lbl_pas:  '取栓次数 (P)',
+    lbl_rec:  '再通水平 (R)',
+    lbl_pc:   '侧支循环差 (C)',
+    lbl_ph:   'PH型出血转化 (P)',
+    lbl_pr:   '再通水平 (R)',
+    lbl_n24:  '术后24小时 NIHSS (24)',
+    can_slbl: 'CAN-CPR 总分',
+    p24_slbl: 'CPR-24 总分',
+    rlbl:     '脑疝风险率',
+    bd_title: '各项得分明细',
+    unit:     '分',
+    ph_glc:   '例：7.5',
+    empty_can:'请填写血糖和 NIHSS',
+    empty_p24:'请填写术后24小时 NIHSS',
+    low: '', midlo: '', midhi: '', high: '',
+    pos_can: '',   neg_can: '',
+    pos_p24: '',   neg_p24: '',
+    can_fml: 'P = 1 / (1 + e<sup>−(−5.2345 + 0.3986 × 总分)</sup>)<br>截断值 8.25分 · 灵敏度 64.4% · 特异度 62.2% · AUC 0.722',
+    p24_fml: 'P = 1 / (1 + e<sup>−(−6.0813 + 0.4047 × 总分)</sup>)<br>截断值 10.25分 · 灵敏度 78.1% · 特异度 78.7% · AUC 0.884',
+    footer:  '<strong>声明：</strong>本工具仅供临床辅助参考，不能替代专业临床判断，所有治疗决策需由医师综合评估后做出。',
+    chd_o: [['0','无　0分'],['1','有　+1分']],
+    asp_o: [['0','≥9分　0分'],['1','8分　+1分'],['2','7分　+2分'],['3','≤6分　+3分']],
+    col_o: [['0','否　0分'],['2.5','是　+2.5分']],
+    pas_o: [['0','1次　0分'],['0.5','2次　+0.5分'],['1.5','3次　+1.5分'],['2','≥4次　+2分']],
+    rec_o: [['0','mTICI 3级（完全再通）　0分'],['0.5','mTICI 2b级　+0.5分'],['2.5','mTICI 0–2a　+2.5分']],
+    pc_o:  [['0','否　0分'],['1.5','是　+1.5分']],
+    ph_o:  [['0','无PH出血　0分'],['2.5','PH 1型　+2.5分'],['5','PH 2型　+5分']],
+    pr_o:  [['0','完全再通 mTICI 3级　0分'],['0.5','mTICI 2b级　+0.5分'],['2.5','无再通 mTICI 0–2a　+2.5分']],
+    can_rn: ['冠心病','入院血糖','ASPECTS','NIHSS','侧支循环差','取栓次数','再通水平'],
+    p24_rn: ['侧支循环差','PH型出血','再通水平','24小时 NIHSS'],
+  },
+  en: {
+    title:    'Brain Herniation Risk After Anterior Circulation Thrombectomy',
+    sub:      'Dept. of Neurology, Nanfang Hospital, Southern Medical University',
+    tab_can:  'Immediate Post-Procedure Herniation Risk (CAN-CPR)',
+    tab_p24:  '24-Hour Post-Procedure Herniation Risk (CPR-24)',
+    can_s1:   'Baseline & Pre-procedural Features',
+    can_s2:   'Procedural Features',
+    p24_s1:   '24-Hour Post-procedural Features',
+    lbl_chd:  'Coronary Heart Disease (C)',
+    lbl_glc:  'Admission Glucose (A)',
+    lbl_asp:  'ASPECTS (A)',
+    lbl_nhs:  'Admission NIHSS (N)',
+    lbl_col:  'Poor Collateral Circulation (C)',
+    lbl_pas:  'Number of Passes (P)',
+    lbl_rec:  'Recanalization Level (R)',
+    lbl_pc:   'Poor Collateral Circulation (C)',
+    lbl_ph:   'Hemorrhagic Transformation Type (P)',
+    lbl_pr:   'Recanalization Level (R)',
+    lbl_n24:  '24-Hour NIHSS (24)',
+    can_slbl: 'CAN-CPR Total Score',
+    p24_slbl: 'CPR-24 Total Score',
+    rlbl:     'Herniation Risk Rate',
+    bd_title: 'Score Breakdown',
+    unit:     ' points',
+    ph_glc:   'e.g. 7.5',
+    empty_can:'Enter admission glucose and NIHSS',
+    empty_p24:'Enter 24-hour NIHSS',
+    low: '', midlo: '', midhi: '', high: '',
+    pos_can: '',   neg_can: '',
+    pos_p24: '',   neg_p24: '',
+    can_fml: 'P = 1 / (1 + e<sup>−(−5.2345 + 0.3986 × score)</sup>)<br>Cutoff 8.25 points · Sensitivity 64.4% · Specificity 62.2% · AUC 0.722',
+    p24_fml: 'P = 1 / (1 + e<sup>−(−6.0813 + 0.4047 × score)</sup>)<br>Cutoff 10.25 points · Sensitivity 78.1% · Specificity 78.7% · AUC 0.884',
+    footer:  '<strong>Disclaimer:</strong> This tool is for clinical reference only and does not replace professional clinical judgment. All treatment decisions must be made by qualified physicians.',
+    chd_o: [['0','No  0 points'],['1','Yes  +1 point']],
+    asp_o: [['0','≥9  0 points'],['1','8  +1 point'],['2','7  +2 points'],['3','≤6  +3 points']],
+    col_o: [['0','No  0 points'],['2.5','Yes  +2.5 points']],
+    pas_o: [['0','1 pass  0 points'],['0.5','2 passes  +0.5 points'],['1.5','3 passes  +1.5 points'],['2','≥4 passes  +2 points']],
+    rec_o: [['0','mTICI 3 (Complete recanalization)  0 points'],['0.5','mTICI 2b  +0.5 points'],['2.5','mTICI 0–2a (No/partial recanalization)  +2.5 points']],
+    pc_o:  [['0','No  0 points'],['1.5','Yes  +1.5 points']],
+    ph_o:  [['0','No PH  0 points'],['2.5','PH Type 1  +2.5 points'],['5','PH Type 2  +5 points']],
+    pr_o:  [['0','Complete recanalization mTICI 3  0 points'],['0.5','mTICI 2b  +0.5 points'],['2.5','No recanalization mTICI 0–2a  +2.5 points']],
+    can_rn: ['Coronary Heart Disease','Admission Glucose','ASPECTS','NIHSS','Poor Collaterals','No. of Passes','Recanalization'],
+    p24_rn: ['Poor Collaterals','Hemorrhagic Transformation','Recanalization','24h NIHSS'],
+  }
+};
+
+let LANG = 'zh';
+
+function fillSel(id, opts) {
+  const el = document.getElementById(id);
+  const cur = el.value;
+  el.innerHTML = opts.map(([v,t]) => `<option value="${v}">${t}</option>`).join('');
+  if (opts.some(([v]) => v === cur)) el.value = cur;
+}
+
+function txt(id, s) { document.getElementById(id).textContent = s; }
+function htm(id, s) { document.getElementById(id).innerHTML  = s; }
+
+function renderUI() {
+  const L = T[LANG];
+  txt('hdr-title', L.title); txt('hdr-sub', L.sub);
+  txt('tab-can',   L.tab_can); txt('tab-p24', L.tab_p24);
+  txt('can-s1', L.can_s1); txt('can-s2', L.can_s2); txt('p24-s1', L.p24_s1);
+  txt('lbl-chd', L.lbl_chd); txt('lbl-glc', L.lbl_glc);
+  txt('lbl-asp', L.lbl_asp); txt('lbl-nhs', L.lbl_nhs);
+  txt('lbl-col', L.lbl_col); txt('lbl-pas', L.lbl_pas); txt('lbl-rec', L.lbl_rec);
+  txt('lbl-pc',  L.lbl_pc);  txt('lbl-ph',  L.lbl_ph);
+  txt('lbl-pr',  L.lbl_pr);  txt('lbl-n24', L.lbl_n24);
+  txt('can-slbl', L.can_slbl); txt('p24-slbl', L.p24_slbl);
+  txt('can-rlbl', L.rlbl);     txt('p24-rlbl', L.rlbl);
+  htm('can-fml', L.can_fml);   htm('p24-fml', L.p24_fml);
+  htm('footer',  L.footer);
+  document.getElementById('glc').placeholder = L.ph_glc;
+  fillSel('chd', L.chd_o); fillSel('asp', L.asp_o);
+  fillSel('col', L.col_o); fillSel('pas', L.pas_o); fillSel('rec', L.rec_o);
+  fillSel('pc',  L.pc_o);  fillSel('ph',  L.ph_o);  fillSel('pr',  L.pr_o);
+  calcCan(); calcP24();
+}
+
+function setLang(lang) {
+  LANG = lang;
+  document.getElementById('btn-zh').classList.toggle('active', lang === 'zh');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  renderUI();
+}
+
+function switchTab(t) {
+  document.getElementById('tab-can').classList.toggle('active',   t === 'can');
+  document.getElementById('tab-p24').classList.toggle('active',   t === 'p24');
+  document.getElementById('panel-can').classList.toggle('active', t === 'can');
+  document.getElementById('panel-p24').classList.toggle('active', t === 'p24');
+}
+
+function riskStyle(p) {
+  const L = T[LANG];
+  if (p < 20) return { color: '#0a7a5a', label: L.low,   bg: '#1D9E75' };
+  if (p < 40) return { color: '#9a6200', label: L.midlo, bg: '#EF9F27' };
+  if (p < 60) return { color: '#c04a1a', label: L.midhi, bg: '#D85A30' };
+  return             { color: '#a32020', label: L.high,  bg: '#E24B4A' };
+}
+
+function ptStr(v) { return (v > 0 ? '+' : '') + v + T[LANG].unit; }
+
+function glucPts(v) { return v < 7 ? 0 : v < 8 ? 1 : v < 15 ? 2 : 3; }
+function nhsCanPts(v) { return v<=7?0 : v<=9?2 : v<=16?3 : v<=24?4 : 5.5; }
+function nhs24Pts(v) { return v<=4?0 : v<=9?2.5 : v<=13?5.5 : v<=18?7.5 : v<=24?10 : v<=35?13 : 15.5; }
+
+function calcCan() {
+  const L   = T[LANG];
+  const chd = parseFloat(document.getElementById('chd').value) || 0;
+  const gRaw= parseFloat(document.getElementById('glc').value);
+  const asp = parseFloat(document.getElementById('asp').value) || 0;
+  const nRaw= parseInt(document.getElementById('nhs').value);
+  const col = parseFloat(document.getElementById('col').value) || 0;
+  const pas = parseFloat(document.getElementById('pas').value) || 0;
+  const rec = parseFloat(document.getElementById('rec').value) || 0;
+  const gp  = isNaN(gRaw) ? null : glucPts(gRaw);
+  const np  = isNaN(nRaw) ? null : nhsCanPts(nRaw);
+
+  txt('p-chd', ptStr(chd)); txt('p-asp', ptStr(asp));
+  txt('p-col', ptStr(col)); txt('p-pas', ptStr(pas)); txt('p-rec', ptStr(rec));
+  txt('p-glc', gp === null ? '—' : ptStr(gp));
+  txt('p-nhs', np === null ? '—' : ptStr(np));
+
+  if (gp === null || np === null) {
+    txt('can-total', '—'); txt('can-prob', '—'); txt('can-pct', '');
+    document.getElementById('can-gauge').style.width = '0%';
+    htm('can-bd', ''); return;
+  }
+  const total = chd + gp + asp + np + col + pas + rec;
+  const prob  = 1 / (1 + Math.exp(-(-5.2345 + 0.3986 * total))) * 100;
+  const s = riskStyle(prob);
+  txt('can-total', total + L.unit);
+  txt('can-prob', prob.toFixed(1)); txt('can-pct', '%');
+  document.getElementById('can-gauge').style.width      = Math.min(prob,100) + '%';
+  document.getElementById('can-gauge').style.background = s.bg;
+  const vals = [chd, gp, asp, np, col, pas, rec];
+  htm('can-bd', `<div class="bd-title">${L.bd_title}</div>` +
+    L.can_rn.map((n,i) => `<div class="bd-row"><span>${n}</span><span class="bd-val">${ptStr(vals[i])}</span></div>`).join(''));
+}
+
+function calcP24() {
+  const L   = T[LANG];
+  const pCol= parseFloat(document.getElementById('pc').value) || 0;
+  const pPh = parseFloat(document.getElementById('ph').value) || 0;
+  const pRec= parseFloat(document.getElementById('pr').value) || 0;
+  const nRaw= parseInt(document.getElementById('n24').value);
+  const np  = isNaN(nRaw) ? null : nhs24Pts(nRaw);
+
+  txt('q-col', ptStr(pCol)); txt('q-ph', ptStr(pPh)); txt('q-rec', ptStr(pRec));
+  txt('q-nhs', np === null ? '—' : ptStr(np));
+
+  if (np === null) {
+    txt('p24-total', '—'); txt('p24-prob', '—'); txt('p24-pct', '');
+    document.getElementById('p24-gauge').style.width = '0%';
+    htm('p24-bd', ''); return;
+  }
+  const total = pCol + pPh + pRec + np;
+  const prob  = 1 / (1 + Math.exp(-(-6.0813 + 0.4047 * total))) * 100;
+  const s = riskStyle(prob);
+  txt('p24-total', total + L.unit);
+  txt('p24-prob', prob.toFixed(1)); txt('p24-pct', '%');
+  document.getElementById('p24-gauge').style.width      = Math.min(prob,100) + '%';
+  document.getElementById('p24-gauge').style.background = s.bg;
+  const vals = [pCol, pPh, pRec, np];
+  htm('p24-bd', `<div class="bd-title">${L.bd_title}</div>` +
+    L.p24_rn.map((n,i) => `<div class="bd-row"><span>${n}</span><span class="bd-val">${ptStr(vals[i])}</span></div>`).join(''));
+}
+
+renderUI();
+</script>
+</body>
+</html>
